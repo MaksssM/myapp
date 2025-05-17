@@ -347,7 +347,9 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const centrifuge = new Centrifuge('ws://localhost:8000/connection/websocket');
+    const centrifuge = new Centrifuge(
+      'ws://localhost:8000/connection/websocket',
+    );
     centrifuge.on('connect', (ctx: any) => {
       console.log('Connected to Centrifugo:', ctx);
     });
