@@ -1,0 +1,3 @@
+Лог запуска сервисов 
+main.go:13:2: package tipatwitter/database is not in std (C:\DISKE\PROGGRAMS\GO\src\tipatwitter\database)
+^C^C

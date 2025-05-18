@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Create React Native Project (Updated)",
+			"command": "npx",
+			"args": ["@react-native-community/cli", "init", "TipaTwitterMobile"],
+			"isBackground": false,
+			"group": "build"
+		}
+	]
+}

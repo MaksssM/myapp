@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tipatwitter-backend
+  labels:
+    app: tipatwitter
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tipatwitter
+  template:
+    metadata:
+      labels:
+        app: tipatwitter
+    spec:
+      containers:
+        - name: backend
+          image: tipatwitter-backend:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://user:password@db:5432/tipatwitter'
+            - name: NEO4J_URL
+              value: 'bolt://neo4j:password@neo4j:7687'

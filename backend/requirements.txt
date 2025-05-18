@@ -1,0 +1,4 @@
+tensorflow-recommenders
+tensorflow
+numpy
+pandas

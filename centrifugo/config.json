@@ -1,0 +1,7 @@
+{
+	"v3_use_offset": true,
+	"secret": "your_secret_key",
+	"admin_password": "admin_password",
+	"admin_secret": "admin_secret_key",
+	"allowed_origins": ["*"]
+}
