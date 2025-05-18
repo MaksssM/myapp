@@ -13,8 +13,9 @@ import {
   Image,
   useColorScheme,
   Switch,
+  LogBox,
 } from 'react-native';
-import Centrifuge from 'centrifuge';
+import RNFS from 'react-native-fs';
 
 // Типы данных
 interface Post {
@@ -32,24 +33,25 @@ const REACTION_TYPES = ['👍', '🔥', '😮', '❤️‍🩹', '🔁', '⭐'];
 // URL backend-сервера
 const API_URL = 'http://10.0.2.2:8080'; // Для эмулятора Android, для реального устройства — IP вашего ПК
 
+// Обновление интерфейса для современного стиля
 const THEME_COLORS = {
   light: {
-    background: '#f8f8f8',
-    card: '#fff',
-    text: '#222',
-    accent: '#007AFF',
-    secondary: '#888',
-    input: '#f0f0f0',
-    border: '#e0e0e0',
+    background: '#F5F5F5',
+    card: '#FFFFFF',
+    text: '#333333',
+    accent: '#4CAF50',
+    secondary: '#757575',
+    input: '#E0E0E0',
+    border: '#BDBDBD',
   },
   dark: {
-    background: '#181A20',
-    card: '#23262F',
-    text: '#fff',
-    accent: '#4F8CFF',
-    secondary: '#aaa',
-    input: '#23262F',
-    border: '#23262F',
+    background: '#121212',
+    card: '#1E1E1E',
+    text: '#FFFFFF',
+    accent: '#81C784',
+    secondary: '#BDBDBD',
+    input: '#424242',
+    border: '#616161',
   },
 };
 
@@ -161,9 +163,7 @@ const FeedScreen = ({
           activeOpacity={0.8}
           style={[styles.createBtn, {backgroundColor: theme.colors.accent}]}
           onPress={onPost}>
-          <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 18}}>
-            + Новый пост
-          </Text>
+          <Text style={[styles.createBtnText]}>+ Новый пост</Text>
         </TouchableOpacity>
       }
       renderItem={({item, index}) => (
@@ -297,9 +297,7 @@ const CreatePostScreen = ({onBack, onCreate, theme}: any) => {
             setText('');
           }
         }}>
-        <Text style={{color: '#fff', fontWeight: 'bold', fontSize: 18}}>
-          Опубликовать
-        </Text>
+        <Text style={[styles.createBtnText]}>Опубликовать</Text>
       </TouchableOpacity>
     </View>
   );
@@ -318,6 +316,15 @@ const ThemeSwitcher = ({isDark, setIsDark, theme}: any) => (
   </View>
 );
 
+const logErrorToFile = async (error: string) => {
+  const logFilePath = `${RNFS.DocumentDirectoryPath}/error-log.txt`;
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] ${error}\n`;
+  await RNFS.appendFile(logFilePath, logMessage, 'utf8');
+};
+
+LogBox.ignoreLogs(['Warning: ...']); // Игнорирование известных предупреждений
+
 const App = () => {
   const theme = useTheme();
   const [screen, setScreen] = useState<'feed' | 'profile' | 'create' | 'post'>(
@@ -328,9 +335,21 @@ const App = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    const handleGlobalError = (error: any, isFatal?: boolean) => {
+      const errorMessage = isFatal
+        ? `Fatal: ${error.message}`
+        : `Non-fatal: ${error.message}`;
+      logErrorToFile(errorMessage);
+    };
+
+    ErrorUtils.setGlobalHandler(handleGlobalError);
+  }, []);
+
   // Загрузка постов с backend
   const fetchPosts = async () => {
     try {
+      console.log('API_URL:', API_URL);
       setLoading(true);
       const res = await fetch(`${API_URL}/posts`);
       const data = await res.json();
@@ -346,21 +365,22 @@ const App = () => {
     fetchPosts();
   }, []);
 
-  useEffect(() => {
-    const centrifuge = new Centrifuge(
-      'ws://localhost:8000/connection/websocket',
-    );
-    centrifuge.on('connect', (ctx: any) => {
-      console.log('Connected to Centrifugo:', ctx);
-    });
-    centrifuge.on('disconnect', (ctx: any) => {
-      console.log('Disconnected from Centrifugo:', ctx);
-    });
-    centrifuge.subscribe('feed', (message: any) => {
-      console.log('New message in feed:', message);
-    });
-    centrifuge.connect();
-  }, []);
+  // Закомментируем использование Centrifuge для устранения ошибки
+  // useEffect(() => {
+  //     const centrifuge = new Centrifuge(
+  //         'ws://localhost:8000/connection/websocket',
+  //     );
+  //     centrifuge.on('connect', (ctx: any) => {
+  //         console.log('Connected to Centrifugo:', ctx);
+  //     });
+  //     centrifuge.on('disconnect', (ctx: any) => {
+  //         console.log('Disconnected from Centrifugo:', ctx);
+  //     });
+  //     centrifuge.subscribe('feed', (message: any) => {
+  //         console.log('New message in feed:', message);
+  //     });
+  //     centrifuge.connect();
+  // }, []);
 
   const handleProfile = (author: string) => {
     setSelectedAuthor(author);
@@ -377,13 +397,26 @@ const App = () => {
   };
   const handleCreate = async (text: string, media?: string) => {
     try {
-      await fetch(`${API_URL}/posts`, {
+      console.log('Отправка данных:', {author: 'Аноним', content: text, media});
+      const response = await fetch(`${API_URL}/posts`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({author: 'Аноним', content: text, media}),
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Ошибка при публикации поста:', errorText);
+        logErrorToFile(`Ошибка при публикации поста: ${errorText}`);
+        return;
+      }
+
+      console.log('Пост успешно опубликован');
       await fetchPosts();
-    } catch (e) {}
+    } catch (e) {
+      console.error('Ошибка сети при публикации поста:', e);
+      logErrorToFile(`Ошибка сети при публикации поста: ${e}`);
+    }
     setScreen('feed');
   };
 
@@ -443,39 +476,48 @@ const App = () => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: THEME_COLORS.light.background,
   },
   header: {
-    height: 60,
+    height: 70,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    elevation: 4,
-    marginBottom: 4,
+    paddingHorizontal: 20,
+    backgroundColor: THEME_COLORS.light.accent,
+    elevation: 5,
   },
   headerTitle: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 24,
     fontWeight: 'bold',
-    letterSpacing: 1,
   },
   createBtn: {
-    borderRadius: 24,
-    paddingVertical: 12,
+    borderRadius: 30,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    backgroundColor: THEME_COLORS.light.accent,
     alignItems: 'center',
-    marginBottom: 16,
+    marginVertical: 10,
+  },
+  createBtnText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 18,
+    backgroundColor: THEME_COLORS.light.card,
+    borderRadius: 15,
+    padding: 20,
+    marginVertical: 10,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: {width: 0, height: 2},
-    elevation: 2,
-    borderWidth: 1,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: {width: 0, height: 5},
+  },
+  cardText: {
+    color: THEME_COLORS.light.text,
+    fontSize: 16,
   },
   author: {
     fontWeight: 'bold',
